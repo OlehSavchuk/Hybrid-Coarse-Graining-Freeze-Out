@@ -6,6 +6,19 @@ This code processes 4D fluid hypersurfaces (e.g., extracted via Cornelius algori
 
 For more information please read https://arxiv.org/abs/2605.11275
 or presentation in docs/HCGF.pdf
+
+For citations:
+```bibtex
+@article{Savchuk:2026dij,
+    author = "Savchuk, Oleh and Danielewicz, Pawel and Lynch, William and Margueron, J{\'e}r{\^o}me",
+    title = "{Freeze-out model of light nuclei formation in heavy-ion collision transport}",
+    eprint = "2605.11275",
+    archivePrefix = "arXiv",
+    primaryClass = "nucl-th",
+    month = "5",
+    year = "2026"
+}
+```
 ## ⚙️ Prerequisites
 
 To compile and run this code, you will need:
