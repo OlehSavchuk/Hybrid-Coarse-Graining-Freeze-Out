@@ -4,6 +4,8 @@ A high-performance C++ implementation for computing the thermal emission of ligh
 
 This code processes 4D fluid hypersurfaces (e.g., extracted via Cornelius algorithms), interpolates the Equation of State (EoS) thermodynamic fields (Temperature, Chemical Potential, Effective Mass), and computes the $p_T$, $\phi$, and $y$ differential spectra utilizing the Cooper-Frye formalism. The computationally expensive integrations are parallelized across fluid cells using OpenMP.
 
+For more information please read https://arxiv.org/abs/2605.11275
+or presentation in docs/HCGF.pdf
 ## ⚙️ Prerequisites
 
 To compile and run this code, you will need:
