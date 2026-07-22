@@ -1,0 +1,9 @@
+# Configuration for Light Nuclei Emission
+path_to_surface = .
+n0 = 0.02              # Target threshold density
+bins_phi = 20          # Azimuthal angle resolution
+bins_pt = 40           # Transverse momentum resolution
+bins_y = 10             # Rapidity resolution
+t_y_start = 0.05       # Initial rapidity
+t_y_step = 0.10        # Rapidity step size
+t_y_steps_count = 10   # Number of rapidity steps to process
