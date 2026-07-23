@@ -46,6 +46,6 @@ mkdir build && cd build
 cmake ..
 make -j4
 
-./light_nuclei_emission ../config.txt
+./lightnuclei ../config.txt
 ```
 
