@@ -52,7 +52,6 @@ int main(int argc, char** argv) {
     double n0 = config.count("n0") ? std::stod(config["n0"]) : 0.01;
     int bins_phi = config.count("bins_phi") ? std::stoi(config["bins_phi"]) : 20;
     int bins_pt = config.count("bins_pt") ? std::stoi(config["bins_pt"]) : 40;
-    int bins_y = config.count("bins_y") ? std::stoi(config["bins_y"]) : 1;
     double t_y_start = config.count("t_y_start") ? std::stod(config["t_y_start"]) : 0.05;
     double t_y_step = config.count("t_y_step") ? std::stod(config["t_y_step"]) : 0.10;
     int t_y_steps_count = config.count("t_y_steps_count") ? std::stoi(config["t_y_steps_count"]) : 10;
@@ -134,8 +133,7 @@ int main(int argc, char** argv) {
             double pt = ptbins[i];
             for(int j = 0; j < bins_phi; j++) {
                 double phi = -PI + 2 * PI / bins_phi * (j + 0.5);
-                for(int k = 0; k < bins_y; k++) {
-                    double y = t_y;
+                double y = t_y;
                     
                     std::cout << pt << " " << phi << " " << y << "\r" << std::flush;
                     
@@ -175,7 +173,7 @@ int main(int argc, char** argv) {
                         file_outs << " " << t_yield[l];
                     }
                     file_outs << std::endl;
-                }
+                
             }
         }
         file_outs.close();
