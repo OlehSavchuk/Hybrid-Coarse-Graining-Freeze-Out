@@ -18,8 +18,8 @@ find_package(OpenMP REQUIRED)
 
 # Define the executable and its source files
 add_executable(lightnuclei 
-    main.cpp 
-    lightnuclei.cpp
+    src/main.cpp 
+    src/lightnuclei.cpp
 )
 
 # Include libraries
