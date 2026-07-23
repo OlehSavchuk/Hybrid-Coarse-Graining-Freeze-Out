@@ -1,8 +1,8 @@
 # Configuration for Light Nuclei Emission
 path_to_surface = .
-n0 = 0.02              # Target threshold density
+n0 = 0.02              # [1/fm^3] Target threshold density
 bins_phi = 20          # Azimuthal angle resolution
-bins_pt = 40           # Transverse momentum resolution
+bins_pt = 40           # Transverse momentum resolution each bin is 50MeV, hence 40 bins would go to 2 GeV. for clusters pt/A is used
 t_y_start = 0.05       # Initial rapidity
 t_y_step = 0.10        # Rapidity step size
 t_y_steps_count = 10   # Number of rapidity steps to process
