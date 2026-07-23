@@ -23,5 +23,5 @@ add_executable(lightnuclei
 )
 
 # Include libraries
-target_include_directories(lightnuclei PRIVATE ${Boost_INCLUDE_DIRS})
+target_include_directories(lightnuclei PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(lightnuclei PRIVATE OpenMP::OpenMP_CXX)
