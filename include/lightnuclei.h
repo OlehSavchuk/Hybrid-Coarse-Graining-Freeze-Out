@@ -27,7 +27,14 @@ public:
     bool get_cell_properties(double e, double& T, std::vector<double>& mu, double& m_star);
 
     // Computes the Cooper-Frye emission yield for all particle species from a single fluid cell[cite: 10]
-    std::vector<double> emission(double pt, double phi, double y, const std::vector<double>& v, const std::vector<double>& dsigma, double theta, double T, const std::vector<double>& mu_for_e, double mStar_val);
+    // aniso_scale (optional, 3 numbers s_x, s_y, s_z with s_x*s_y*s_z = 1): local momentum anisotropy of the cell.
+    // The distribution in the cell rest frame is f(sqrt(m^2 + (p*_x/s_x)^2 + (p*_y/s_y)^2 + (p*_z/s_z)^2)); since the
+    // Jacobian of the rescaling is s_x*s_y*s_z = 1 the particle number of the cell (and the total yield) is unchanged.
+    std::vector<double> emission(double pt, double phi, double y, const std::vector<double>& v, const std::vector<double>& dsigma, double theta, double T, const std::vector<double>& mu_for_e, double mStar_val, const double* aniso_scale = nullptr);
+
+    // Converts the local momentum anisotropy e_xx, e_yy, e_zz (= 3<p_i p_i>/sum, e_xx+e_yy+e_zz = 3) into the scales
+    // s_i with s_i^2 proportional to e_ii and s_x*s_y*s_z = 1. strength = 1 uses the input as is, 0 switches the anisotropy off.
+    static void aniso_scales(double exx, double eyy, double ezz, double strength, double* s);
     
     // Calculates the center-of-mass momentum relative to the fluid cell velocity[cite: 10]
     double qCM(double p0, double pz, double pt_A, double phi, const std::vector<double>& v, double theta);

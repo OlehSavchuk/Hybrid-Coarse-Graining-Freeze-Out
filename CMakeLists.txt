@@ -25,3 +25,11 @@ add_executable(lightnuclei
 # Include libraries
 target_include_directories(lightnuclei PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(lightnuclei PRIVATE OpenMP::OpenMP_CXX)
+
+# Optional test of the local momentum anisotropy (yield conservation, rest-frame moments):  cmake -DBUILD_TESTS=ON ..
+option(BUILD_TESTS "Build tests/test_conservation" OFF)
+if(BUILD_TESTS)
+    add_executable(test_conservation tests/test_conservation.cpp src/lightnuclei.cpp)
+    target_include_directories(test_conservation PRIVATE ${Boost_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    target_link_libraries(test_conservation PRIVATE OpenMP::OpenMP_CXX)
+endif()
