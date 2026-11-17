@@ -27,14 +27,20 @@ public:
     bool get_cell_properties(double e, double& T, std::vector<double>& mu, double& m_star);
 
     // Computes the Cooper-Frye emission yield for all particle species from a single fluid cell[cite: 10]
-    // aniso_scale (optional, 3 numbers s_x, s_y, s_z with s_x*s_y*s_z = 1): local momentum anisotropy of the cell.
+    // aniso_inv (optional, 6 numbers xx yy zz xy xz yz of Sigma^-1, det Sigma = 1, see aniso_tensor): local momentum anisotropy of the cell.
     // The distribution in the cell rest frame is f(sqrt(m^2 + (p*_x/s_x)^2 + (p*_y/s_y)^2 + (p*_z/s_z)^2)); since the
     // Jacobian of the rescaling is s_x*s_y*s_z = 1 the particle number of the cell (and the total yield) is unchanged.
-    std::vector<double> emission(double pt, double phi, double y, const std::vector<double>& v, const std::vector<double>& dsigma, double theta, double T, const std::vector<double>& mu_for_e, double mStar_val, const double* aniso_scale = nullptr);
+    std::vector<double> emission(double pt, double phi, double y, const std::vector<double>& v, const std::vector<double>& dsigma, double theta, double T, const std::vector<double>& mu_for_e, double mStar_val, const double* aniso_inv = nullptr);
 
     // Converts the local momentum anisotropy e_xx, e_yy, e_zz (= 3<p_i p_i>/sum, e_xx+e_yy+e_zz = 3) into the scales
     // s_i with s_i^2 proportional to e_ii and s_x*s_y*s_z = 1. strength = 1 uses the input as is, 0 switches the anisotropy off.
     static void aniso_scales(double exx, double eyy, double ezz, double strength, double* s);
+
+    // Full local momentum tensor: e = (exx, eyy, ezz, exy, exz, eyz) with e_ij = 3<p_i p_j>/(<p_x p_x>+<p_y p_y>+<p_z p_z>)
+    // (isotropic: e_ii = 1, e_ij = 0). Builds C = 1 + strength (e - 1), normalises it to det = 1 (Sigma = C / det^(1/3)) and returns
+    // inv = Sigma^-1 as (xx, yy, zz, xy, xz, yz). If C is not positive definite the off-diagonal terms are dropped.
+    // The rest-frame distribution is f(sqrt(m^2 + p*^T Sigma^-1 p*)); since det Sigma = 1 the yield per cell is unchanged.
+    static void aniso_tensor(const double* e6, double strength, double* inv6);
     
     // Calculates the center-of-mass momentum relative to the fluid cell velocity[cite: 10]
     double qCM(double p0, double pz, double pt_A, double phi, const std::vector<double>& v, double theta);

@@ -1,14 +1,14 @@
 // Checks the local momentum anisotropy of LightNuclei::emission():
 //  (1) the total yield of a surface element (all 40 species) is unchanged by the anisotropy (moving cell, space-like dsigma),
-//  (2) for a static cell the second moments <p_i^2> reproduce the requested e_xx, e_yy, e_zz,
-//  (3) s = (1,1,1) gives the isotropic emission.
+//  (2) for a static cell the second moments <p_i p_j> reproduce the requested e_ij (diagonal and full tensor incl. e_xy, e_xz, e_yz),
+//  (3) Sigma = 1 gives the isotropic emission.
 // Build (repository root):  g++ -std=c++17 -O2 -fopenmp -Iinclude tests/test_conservation.cpp src/lightnuclei.cpp -o test_conservation
 // Run in the repository root (needs Ts.dat, es.dat, mus.dat, mStar.dat, particles.dat).
 #include "lightnuclei.h"
 #include <algorithm>
 #include <cstdio>
 
-struct Result { std::vector<double> N, pxx, pyy, pzz; };
+struct Result { std::vector<double> N, pxx, pyy, pzz, pxy, pxz, pyz; };
 
 // Integrates (E dN/d^3p) with the measure pt_A dpt_A dphi dy over phase space; also the weighted p_x^2, p_y^2, p_z^2.
 static Result integrate(LightNuclei& LN, const std::vector<double>& A, const std::vector<double>& mbare, double mStar,
@@ -18,7 +18,8 @@ static Result integrate(LightNuclei& LN, const std::vector<double>& A, const std
     const int npt = 240, nphi = 48, ny = 120;
     const double pmax = 6000.0;      // MeV per nucleon (emission() scales it by A)
     const double ymax = 3.5;
-    Result r{std::vector<double>(40, 0.0), std::vector<double>(40, 0.0), std::vector<double>(40, 0.0), std::vector<double>(40, 0.0)};
+    Result r{std::vector<double>(40, 0.0), std::vector<double>(40, 0.0), std::vector<double>(40, 0.0), std::vector<double>(40, 0.0),
+             std::vector<double>(40, 0.0), std::vector<double>(40, 0.0), std::vector<double>(40, 0.0)};
     for (int ip = 0; ip < npt; ip++) {
         const double pn = (ip + 0.5) * pmax / npt;
         for (int jp = 0; jp < nphi; jp++) {
@@ -35,6 +36,9 @@ static Result integrate(LightNuclei& LN, const std::vector<double>& A, const std
                     r.pxx[i] += w * ptA * ptA * cos(phi) * cos(phi);
                     r.pyy[i] += w * ptA * ptA * sin(phi) * sin(phi);
                     r.pzz[i] += w * pz * pz;
+                    r.pxy[i] += w * ptA * ptA * cos(phi) * sin(phi);
+                    r.pxz[i] += w * ptA * cos(phi) * pz;
+                    r.pyz[i] += w * ptA * sin(phi) * pz;
                 }
             }
         }
@@ -54,9 +58,12 @@ int main()
     std::printf("cell: T = %.4f GeV, effective-mass shift %.4f\n", T, mStar);
 
     const double ex[3] = {1.6, 0.9, 0.5};            // e_xx, e_yy, e_zz (sum 3)
-    double s[3], s1[3] = {1, 1, 1};
-    LightNuclei::aniso_scales(ex[0], ex[1], ex[2], 1.0, s);
-    std::printf("scales s = %.4f %.4f %.4f, product = %.12f\n", s[0], s[1], s[2], s[0] * s[1] * s[2]);
+    double s[6], s1[6] = {1, 1, 1, 0, 0, 0}, sf[6];   // Sigma^-1 (xx yy zz xy xz yz): diagonal, identity, full tensor
+    const double ex6[6] = {ex[0], ex[1], ex[2], 0.0, 0.0, 0.0};
+    const double exf[6] = {1.5, 0.9, 0.6, 0.3, 0.2, -0.1};   // full tensor (positive definite, trace 3)
+    LightNuclei::aniso_tensor(ex6, 1.0, s);
+    LightNuclei::aniso_tensor(exf, 1.0, sf);
+    std::printf("Sigma^-1 (diagonal) = %.4f %.4f %.4f, det Sigma^-1 = %.12f\n", s[0], s[1], s[2], s[0] * s[1] * s[2]);
 
     // (1) moving cell with time-like and space-like surface vector components
     {
@@ -68,6 +75,10 @@ int main()
         Result iso = integrate(LN, A, mbare, mStar, v, theta, dsigma, T, mu, nullptr);
         Result one = integrate(LN, A, mbare, mStar, v, theta, dsigma, T, mu, s1);
         Result an  = integrate(LN, A, mbare, mStar, v, theta, dsigma, T, mu, s);
+        Result af  = integrate(LN, A, mbare, mStar, v, theta, dsigma, T, mu, sf);
+        double maxfull = 0;
+        for (int i = 0; i < 40; i++) if (iso.N[i] > 0) maxfull = std::max(maxfull, std::abs(af.N[i] / iso.N[i] - 1.0));
+        std::printf("max |N_fulltensor/N_iso - 1| over all species: %.2e\n", maxfull);
         double maxdiff = 0, maxone = 0;
         std::printf("moving cell: total yield, isotropic / anisotropic / ratio (selected species)\n");
         for (int i = 0; i < 40; i++) {
@@ -91,6 +102,18 @@ int main()
             std::printf("  species %d (A=%g)  isotropic: %.3f %.3f %.3f   anisotropic: %.3f %.3f %.3f   N ratio %.5f\n", i, A[i],
                         3 * iso.pxx[i] / tr, 3 * iso.pyy[i] / tr, 3 * iso.pzz[i] / tr,
                         3 * an.pxx[i] / ta, 3 * an.pyy[i] / ta, 3 * an.pzz[i] / ta, an.N[i] / iso.N[i]);
+        }
+    }
+    // (3) static cell, full tensor: all six moments e_ij = 3<p_i p_j>/sum
+    {
+        std::vector<double> v = {1.0, 0.0, 0.0};
+        std::vector<double> dsigma = {1.0, 0.0, 0.0, 0.0};
+        Result af = integrate(LN, A, mbare, mStar, v, 0.0, dsigma, T, mu, sf);
+        std::printf("static cell, full tensor: requested e = %.3f %.3f %.3f | %.3f %.3f %.3f (xx yy zz | xy xz yz)\n", exf[0], exf[1], exf[2], exf[3], exf[4], exf[5]);
+        for (int i : {0, 1, 3, 6}) {
+            const double tr = af.pxx[i] + af.pyy[i] + af.pzz[i];
+            std::printf("  species %d (A=%g)  measured: %.3f %.3f %.3f | %.3f %.3f %.3f\n", i, A[i], 3 * af.pxx[i] / tr, 3 * af.pyy[i] / tr,
+                        3 * af.pzz[i] / tr, 3 * af.pxy[i] / tr, 3 * af.pxz[i] / tr, 3 * af.pyz[i] / tr);
         }
     }
     return 0;

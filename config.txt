@@ -6,7 +6,10 @@ bins_pt = 40           # Transverse momentum resolution each bin is 50MeV, hence
 t_y_start = 0.05       # Initial rapidity
 t_y_step = 0.10        # Rapidity step size
 t_y_steps_count = 10   # Number of rapidity steps to process
-# Local momentum anisotropy: needs a surface.dat with the extra columns exx, eyy, ezz (columns 16-18;
-# produced by the freeze-out surface generator with "anisotropy 1"). 0 = off (default)
+# Local momentum anisotropy of the emitting cells:
+#   0 = off (default)
+#   1 = diagonal: surface.dat has the extra columns exx, eyy, ezz (columns 16-18)
+#   2 = full tensor: additionally exy, exz, eyz (columns 19-21), produced by the freeze-out surface generator with "anisotropy 2"
 anisotropy = 0
-aniso_strength = 1.0   # scales (e_ii - 1): 1 = as extracted, 0 = isotropic
+aniso_strength = 1.0   # scales (e - 1): 1 = as extracted, 0 = isotropic
+phi_half = 0           # 1: compute only phi in [0, pi] (bins_phi bins there) and mirror to -phi (reaction-plane symmetry)

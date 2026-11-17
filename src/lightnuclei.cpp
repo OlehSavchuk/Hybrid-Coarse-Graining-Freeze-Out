@@ -79,6 +79,33 @@ double LightNuclei::interpolate_mStar(double e, const std::vector<double>& es_ve
 // ----------------------------------------------------------- //
 
 // Calculates the thermal emission array for all particles from a single hypersurface element[cite: 9]
+void LightNuclei::aniso_tensor(const double* e6, double strength, double* inv) {
+    double C[6];   // xx yy zz xy xz yz
+    bool ok = true;
+    for (int i = 0; i < 6; i++) {
+        if (!std::isfinite(e6[i])) ok = false;
+        const double iso = (i < 3) ? 1.0 : 0.0;
+        C[i] = iso + strength * (e6[i] - iso);
+    }
+    auto det3 = [](const double* a) {
+        return a[0]*(a[1]*a[2]-a[5]*a[5]) - a[3]*(a[3]*a[2]-a[5]*a[4]) + a[4]*(a[3]*a[5]-a[1]*a[4]);
+    };
+    // positive definite? (Sylvester: leading minors > 0)
+    if (!ok || C[0] <= 0.01 || C[0]*C[1]-C[3]*C[3] <= 1e-4 || det3(C) <= 1e-4) {
+        for (int i = 3; i < 6; i++) C[i] = 0.0;
+        for (int i = 0; i < 3; i++) { C[i] = std::isfinite(e6[i]) ? std::max(1.0 + strength * (e6[i] - 1.0), 0.01) : 1.0; }
+    }
+    const double g = std::cbrt(det3(C));
+    for (int i = 0; i < 6; i++) C[i] /= g;                // Sigma, det = 1
+    // inverse of a symmetric matrix with det 1 = adjugate
+    inv[0] = C[1]*C[2] - C[5]*C[5];
+    inv[1] = C[0]*C[2] - C[4]*C[4];
+    inv[2] = C[0]*C[1] - C[3]*C[3];
+    inv[3] = C[4]*C[5] - C[3]*C[2];
+    inv[4] = C[3]*C[5] - C[4]*C[1];
+    inv[5] = C[3]*C[4] - C[5]*C[0];
+}
+
 void LightNuclei::aniso_scales(double exx, double eyy, double ezz, double strength, double* s) {
     // e_ii -> 1 + strength*(e_ii - 1), kept positive; non-finite input = isotropic
     double e[3] = {exx, eyy, ezz};
@@ -91,7 +118,7 @@ void LightNuclei::aniso_scales(double exx, double eyy, double ezz, double streng
     for (int i = 0; i < 3; i++) s[i] = std::sqrt(e[i] / g);
 }
 
-std::vector<double> LightNuclei::emission(double pt, double phi, double y, const std::vector<double>& v, const std::vector<double>& dsigma, double theta, double T, const std::vector<double>& mu_for_e, double mStar_val, const double* aniso_scale) {
+std::vector<double> LightNuclei::emission(double pt, double phi, double y, const std::vector<double>& v, const std::vector<double>& dsigma, double theta, double T, const std::vector<double>& mu_for_e, double mStar_val, const double* aniso_inv) {
     std::vector<double> produced(Nextd, 0.0);
 
     // Cell velocity (lab frame) used to boost the momentum into the cell rest frame (pure boost, axes stay parallel to the lab axes)
@@ -112,16 +139,16 @@ std::vector<double> LightNuclei::emission(double pt, double phi, double y, const
         
         double QCM = qCM(p0, pz, pt_A, phi, v, theta);
 
-        // Local momentum anisotropy: replace the rest-frame energy by the energy of the rescaled momentum.
-        // For s = (1,1,1) this is identical to QCM.
-        if (aniso_scale) {
+        // Local momentum anisotropy: replace the rest-frame energy by sqrt(m^2 + p*^T Sigma^-1 p*).
+        // For Sigma = 1 this is identical to QCM.
+        if (aniso_inv) {
             const double px = pt_A * cos(phi), py = pt_A * sin(phi);
             const double bp = bx * px + by * py + bz * pz;
             const double c1 = gfac * bp - gam * p0;
-            const double qx = (px + c1 * bx) / aniso_scale[0];
-            const double qy = (py + c1 * by) / aniso_scale[1];
-            const double qz = (pz + c1 * bz) / aniso_scale[2];
-            QCM = sqrt(m * m + qx * qx + qy * qy + qz * qz);
+            const double sx = px + c1 * bx, sy = py + c1 * by, sz = pz + c1 * bz;     // p* (cell rest frame)
+            const double Q = aniso_inv[0] * sx * sx + aniso_inv[1] * sy * sy + aniso_inv[2] * sz * sz
+                           + 2.0 * (aniso_inv[3] * sx * sy + aniso_inv[4] * sx * sz + aniso_inv[5] * sy * sz);
+            QCM = sqrt(m * m + std::max(Q, 0.0));
         }
         
         // Contraction of the normal surface vector with the four-momentum: p^\mu d\sigma_\mu[cite: 9]

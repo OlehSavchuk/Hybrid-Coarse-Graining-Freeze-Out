@@ -15,7 +15,7 @@ struct CellData {
     std::vector<double> mu;     // Chemical potentials[cite: 11]
     double mStar;               // Effective mass shift[cite: 11]
     bool valid;                 // Flag for physical validity[cite: 11]
-    double s[3] = {1.0, 1.0, 1.0}; // local momentum anisotropy scales (s_x s_y s_z = 1), see LightNuclei::emission
+    double sinv[6] = {1.0, 1.0, 1.0, 0.0, 0.0, 0.0}; // Sigma^-1 of the local momentum anisotropy (xx yy zz xy xz yz), see LightNuclei::aniso_tensor
 };
 
 // Helper function to read run parameters from config.txt[cite: 11]
@@ -59,9 +59,12 @@ int main(int argc, char** argv) {
 
     // Local momentum anisotropy (needs the surface file with the 3 extra columns exx, eyy, ezz, i.e. "anisotropy 1" in the
     // surface generator): "anisotropy = 1" switches it on, "aniso_strength" scales (e_ii - 1) (1 = as extracted, 0 = off)
-    bool use_aniso = config.count("anisotropy") && std::stoi(config["anisotropy"]) != 0;
+    int aniso_mode = config.count("anisotropy") ? std::stoi(config["anisotropy"]) : 0;   // 0 off, 1 diagonal (exx eyy ezz), 2 full tensor (+ exy exz eyz)
+    bool use_aniso = aniso_mode != 0;
     double aniso_strength = config.count("aniso_strength") ? std::stod(config["aniso_strength"]) : 1.0;
     long long aniso_cells = 0;
+    // phi_half = 1: only phi in [0,pi] is computed (bins_phi bins there) and mirrored to -phi (y -> -y symmetry of the reaction plane)
+    bool phi_half = config.count("phi_half") && std::stoi(config["phi_half"]) != 0;
 
     // Define transverse momentum bin centers[cite: 11]
     double ptbins[40];
@@ -96,11 +99,12 @@ int main(int argc, char** argv) {
         iss >> enden_fr >> temperature_fr >> density_fr;
         for (int i = 0; i < 4; i++) iss >> velocity_fr[i];
         if (!iss) continue;
-        double e_aniso[3] = {1.0, 1.0, 1.0};
+        double e_aniso[6] = {1.0, 1.0, 1.0, 0.0, 0.0, 0.0};
         if (use_aniso) {
             iss >> e_aniso[0] >> e_aniso[1] >> e_aniso[2];
+            if (aniso_mode >= 2) iss >> e_aniso[3] >> e_aniso[4] >> e_aniso[5];
             if (!iss) {
-                std::cerr << "anisotropy = 1, but the surface file has no exx, eyy, ezz columns (columns 16-18)" << std::endl;
+                std::cerr << "anisotropy > 0, but the surface file has no exx, eyy, ezz columns (columns 16-18; anisotropy = 2 also needs exy, exz, eyz, columns 19-21)" << std::endl;
                 return 1;
             }
         }
@@ -127,7 +131,7 @@ int main(int argc, char** argv) {
             cell.valid = LN.get_cell_properties(e_fr, cell.T, cell.mu, cell.mStar);
             
             if (use_aniso) {
-                LightNuclei::aniso_scales(e_aniso[0], e_aniso[1], e_aniso[2], aniso_strength, cell.s);
+                LightNuclei::aniso_tensor(e_aniso, aniso_strength, cell.sinv);
                 aniso_cells++;
             }
 
@@ -153,7 +157,7 @@ int main(int argc, char** argv) {
         for(int i = 0; i < bins_pt; i++) {
             double pt = ptbins[i];
             for(int j = 0; j < bins_phi; j++) {
-                double phi = -PI + 2 * PI / bins_phi * (j + 0.5);
+                double phi = phi_half ? PI / bins_phi * (j + 0.5) : -PI + 2 * PI / bins_phi * (j + 0.5);
                 double y = t_y;
                     
                     std::cout << pt << " " << phi << " " << y << "\r" << std::flush;
@@ -172,7 +176,7 @@ int main(int argc, char** argv) {
                         #pragma omp for nowait
                         for (size_t c = 0; c < valid_cells.size(); ++c) {
                             const auto& cell = valid_cells[c];
-                            std::vector<double> t_emission = LN.emission(pt, phi, y, cell.v, cell.dsigma, cell.theta, cell.T, cell.mu, cell.mStar, use_aniso ? cell.s : nullptr);
+                            std::vector<double> t_emission = LN.emission(pt, phi, y, cell.v, cell.dsigma, cell.theta, cell.T, cell.mu, cell.mStar, use_aniso ? cell.sinv : nullptr);
                             for(size_t m = 0; m < local_yield.size(); m++) {
                                 local_yield[m] += t_emission[m];
                             }
@@ -189,11 +193,13 @@ int main(int argc, char** argv) {
                     // --- END OPENMP REGION ---
                     
                     // Export the calculated phase-space spectra[cite: 11]
-                    file_outs << pt << " " << phi << " " << y;
-                    for(size_t l = 0; l < t_yield.size(); l++) {
-                        file_outs << " " << t_yield[l];
+                    for(int mir = 0; mir < (phi_half ? 2 : 1); mir++) {
+                        file_outs << pt << " " << (mir ? -phi : phi) << " " << y;
+                        for(size_t l = 0; l < t_yield.size(); l++) {
+                            file_outs << " " << t_yield[l];
+                        }
+                        file_outs << std::endl;
                     }
-                    file_outs << std::endl;
                 
             }
         }
